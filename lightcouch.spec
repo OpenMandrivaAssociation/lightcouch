@@ -11,7 +11,7 @@ Source0:       https://github.com/lightcouch/LightCouch/archive/%{name}-%{versio
 BuildRequires: java-devel
 BuildRequires: mvn(com.google.code.gson:gson)
 BuildRequires: mvn(org.apache.httpcomponents:httpclient) >= 4.3.3
-BuildRequires: mvn(org.sonatype.oss:oss-parent)
+BuildRequires: mvn(org.sonatype.oss:oss-parent:pom:)
 BuildRequires: mvn(junit:junit)
 BuildRequires: maven-local
 BuildArch:     noarch
