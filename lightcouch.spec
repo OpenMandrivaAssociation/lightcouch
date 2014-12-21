@@ -1,6 +1,7 @@
 Name:          lightcouch
 Version:       0.1.2
-Release:       2%{?dist}
+Release:       2.1
+Group:		Databases
 Summary:       CouchDB Java API
 License:       ASL 2.0
 URL:           http://www.lightcouch.org/
