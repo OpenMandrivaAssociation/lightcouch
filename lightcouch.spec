@@ -5,7 +5,7 @@ Release:       2.4
 Group:		Databases
 Summary:       CouchDB Java API
 License:       ASL 2.0
-URL:           http://www.lightcouch.org/
+URL:           https://www.lightcouch.org/
 Source0:       https://github.com/lightcouch/LightCouch/archive/%{name}-%{version}.tar.gz
 
 BuildRequires: java-devel
