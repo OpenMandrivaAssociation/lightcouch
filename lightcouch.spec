@@ -1,119 +1,152 @@
-%{?_javapackages_macros:%_javapackages_macros}
-Name:          lightcouch
-Version:       0.1.2
-Release:       2.4
+Name:		lightcouch
+Version:	0.2.0
+Release:	1
+Summary:	CouchDB Java API
 Group:		Databases
-Summary:       CouchDB Java API
-License:       ASL 2.0
-URL:           https://www.lightcouch.org/
-Source0:       https://github.com/lightcouch/LightCouch/archive/%{name}-%{version}.tar.gz
+License:	ASL 2.0
+URL:		https://github.com/lightcouch/LightCouch
+Source0:	https://github.com/lightcouch/LightCouch/archive/refs/tags/lightcouch-%{version}.tar.gz#/lightcouch-%{version}.tar.gz
 
-BuildRequires: java-devel
-BuildRequires: mvn(com.google.code.gson:gson)
-BuildRequires: mvn(org.apache.httpcomponents:httpclient) >= 4.3.3
-BuildRequires: mvn(org.sonatype.oss:oss-parent:pom:)
-BuildRequires: mvn(junit:junit)
-BuildRequires: maven-local
-BuildArch:     noarch
+BuildArch:	noarch
+BuildRequires:	python
+# Literal, so the first rpmbuild -bs records them before sysjar is installed.
+BuildRequires:	maven
+BuildRequires:	java-current-devel
+BuildRequires:	mvn(org.apache.httpcomponents:httpclient)
+# The httpclient POM parents httpcomponents-client in the same package.
+# That parent POM parents httpcomponents-parent, which is a separate package.
+BuildRequires:	mvn(org.apache.httpcomponents:httpcomponents-parent:pom::)
+# httpcomponents-parent and commons-parent both parent apache.
+BuildRequires:	mvn(org.apache:apache:pom::)
+BuildRequires:	mvn(commons-codec:commons-codec)
+BuildRequires:	mvn(commons-logging:commons-logging)
+# Codec and logging parent commons-parent. A parent POM is not a Requires.
+BuildRequires:	mvn(org.apache.commons:commons-parent:pom::)
+BuildRequires:	mvn(com.google.code.gson:gson)
+BuildSystem:	maven
+BuildOption(install):	--file-name lightcouch
+
+Obsoletes:	%{name}-javadoc < %{version}-%{release}
 
 %description
-LightCouch aims at providing a simple API
-for communicating with CouchDB databases. 
-
-%package javadoc
-Summary:       Javadoc for %{name}
-
-%description javadoc
-This package contains javadoc for %{name}.
+LightCouch is a Java client for CouchDB. 0.2.0 is the last upstream
+release. It speaks CouchDB 2: Mango _find queries, string update
+sequences, and bulk documents with new_edits. Temp views and
+all_or_nothing bulk updates are gone. The client is Closeable and
+reads view documents as UTF-8. This build uses the system HttpClient
+4.5, Gson, Commons Codec, and Commons Logging jars. The sources import
+Codec and Logging, and Logging is not pulled in by HttpClient, so
+both are direct dependencies. The compiler release is 8. The DocBook
+guide and the tests are left out.
 
 %prep
-%setup -q -n LightCouch-%{name}-%{version}
-find . -name "*.jar" -print -delete
-find . -name "*.class" -print -delete
+%autosetup -n LightCouch-lightcouch-%{version}
+rm -rf guide src/test
+find . -name '*.jar' -delete
+python - <<'PY'
+from pathlib import Path
 
-# NullPointerException
-rm -r src/test/java/org/lightcouch/tests/CouchDbClientLoadTest.java \
- src/test/java/org/lightcouch/tests/CouchDbClientTest.java
+if Path("guide").exists() or Path("src/test").exists():
+    raise SystemExit("guide or tests remain")
+java_files = list(Path("src/main/java").rglob("*.java"))
+if len(java_files) != 27:
+    raise SystemExit("java files " + str(len(java_files)))
+if list(Path(".").rglob("*.jar")):
+    raise SystemExit("prebuilt jar remains")
+for pom in Path(".").rglob("pom.xml"):
+    pom.unlink()
 
-# unreported exception
-sed -i "s|private void setEntity(HttpEntityEnclosingRequestBase httpRequest, String json) {|private void setEntity(HttpEntityEnclosingRequestBase httpRequest, String json) throws java.io.UnsupportedEncodingException {|" \
- src/main/java/org/lightcouch/CouchDbClientBase.java
-sed -i "s|Response put(URI uri, InputStream instream, String contentType) {|Response put(URI uri, InputStream instream, String contentType) throws java.io.UnsupportedEncodingException {|" \
- src/main/java/org/lightcouch/CouchDbClientBase.java
-sed -i "s|HttpResponse post(URI uri, String json) {|HttpResponse post(URI uri, String json) throws java.io.UnsupportedEncodingException {|" \
- src/main/java/org/lightcouch/CouchDbClientBase.java
-sed -i "s|public ReplicationResult trigger() {|public ReplicationResult trigger() throws java.io.UnsupportedEncodingException {|" \
- src/main/java/org/lightcouch/Replication.java
-sed -i "s|public InputStream queryForStream() {|public InputStream queryForStream() throws java.io.UnsupportedEncodingException {|" \
- src/main/java/org/lightcouch/View.java
-sed -i "s|public <T> List<T> query(Class<T> classOfT) {|public <T> List<T> query(Class<T> classOfT) throws java.io.UnsupportedEncodingException {|" \
- src/main/java/org/lightcouch/View.java
-sed -i "s|public <K, V, T> ViewResult<K, V, T> queryView(Class<K> classOfK, Class<V> classOfV, Class<T> classOfT) {|public <K, V, T> ViewResult<K, V, T> queryView(Class<K> classOfK, Class<V> classOfV, Class<T> classOfT) throws java.io.UnsupportedEncodingException {|" \
- src/main/java/org/lightcouch/View.java
-sed -i "s|private <V> V queryValue(Class<V> classOfV) {|private <V> V queryValue(Class<V> classOfV) throws java.io.UnsupportedEncodingException {|" \
- src/main/java/org/lightcouch/View.java
-sed -i "s|public void batch(Object object) {|public void batch(Object object) throws java.io.UnsupportedEncodingException {|" \
- src/main/java/org/lightcouch/CouchDbClientBase.java
-sed -i "s|public List<Response> bulk(List<?> objects, boolean allOrNothing) {|public List<Response> bulk(List<?> objects, boolean allOrNothing) throws java.io.UnsupportedEncodingException {|" \
- src/main/java/org/lightcouch/CouchDbClientBase.java
-sed -i "s|public Response saveAttachment(InputStream instream, String name, String contentType) {|public Response saveAttachment(InputStream instream, String name, String contentType) throws java.io.UnsupportedEncodingException {|" \
- src/main/java/org/lightcouch/CouchDbClientBase.java
-sed -i "s|public Response saveAttachment(InputStream instream, String name, String contentType, String docId, String docRev) {|public Response saveAttachment(InputStream instream, String name, String contentType, String docId, String docRev) throws java.io.UnsupportedEncodingException {|" \
- src/main/java/org/lightcouch/CouchDbClientBase.java
-sed -i "s|Response put(URI uri, Object object, boolean newEntity) {|Response put(URI uri, Object object, boolean newEntity) throws java.io.UnsupportedEncodingException {|" \
- src/main/java/org/lightcouch/CouchDbClientBase.java
-sed -i "s|public String queryForString() {|public String queryForString() throws java.io.UnsupportedEncodingException {|" \
- src/main/java/org/lightcouch/View.java
-sed -i "s|public int queryForInt() {|public int queryForInt() throws java.io.UnsupportedEncodingException {|" \
- src/main/java/org/lightcouch/View.java
-sed -i "s|public long queryForLong() {|public long queryForLong() throws java.io.UnsupportedEncodingException {|" \
- src/main/java/org/lightcouch/View.java
-sed -i "s|public boolean queryForBoolean() {|public boolean queryForBoolean() throws java.io.UnsupportedEncodingException {|" \
- src/main/java/org/lightcouch/View.java
-sed -i "s|String currentStartKeyDocId, String startKey, String startKeyDocId, Class<T> classOfT) {|String currentStartKeyDocId, String startKey, String startKeyDocId, Class<T> classOfT) throws java.io.UnsupportedEncodingException {|" \
- src/main/java/org/lightcouch/View.java
-sed -i "s|public <T> Page<T> queryPage(int rowsPerPage, String param, Class<T> classOfT) {|public <T> Page<T> queryPage(int rowsPerPage, String param, Class<T> classOfT) throws java.io.UnsupportedEncodingException {|" \
- src/main/java/org/lightcouch/View.java
-sed -i "s|public Response save(Object object) {|public Response save(Object object) throws java.io.UnsupportedEncodingException {|" \
- src/main/java/org/lightcouch/CouchDbClientBase.java
-sed -i "s|public Response update(Object object) {|public Response update(Object object) throws java.io.UnsupportedEncodingException {|" \
- src/main/java/org/lightcouch/CouchDbClientBase.java
-sed -i "s|public void compact() {|public void compact() throws java.io.UnsupportedEncodingException {|" \
- src/main/java/org/lightcouch/CouchDbContext.java
-sed -i "s|public void ensureFullCommit() {|public void ensureFullCommit() throws java.io.UnsupportedEncodingException {|" \
- src/main/java/org/lightcouch/CouchDbContext.java
-sed -i "s|public Response synchronizeWithDb(DesignDocument document) {|public Response synchronizeWithDb(DesignDocument document) throws java.io.UnsupportedEncodingException {|" \
- src/main/java/org/lightcouch/CouchDbDesign.java
-sed -i "s|public void synchronizeAllWithDb() {|public void synchronizeAllWithDb() throws java.io.UnsupportedEncodingException {|" \
- src/main/java/org/lightcouch/CouchDbDesign.java
-sed -i "s|public void syncDesignDocsWithDb() {|public void syncDesignDocsWithDb() throws java.io.UnsupportedEncodingException {|" \
- src/main/java/org/lightcouch/CouchDbClientBase.java
-sed -i "s|public Response save() {|public Response save() throws java.io.UnsupportedEncodingException {|" \
- src/main/java/org/lightcouch/Replicator.java
+Path("pom.xml").write_text("""<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>org.lightcouch</groupId>
+  <artifactId>lightcouch</artifactId>
+  <version>%{version}</version>
+  <packaging>jar</packaging>
+  <name>LightCouch</name>
+  <description>CouchDB Java API. Built against the system HttpClient, Gson, Codec, and Logging jars.</description>
+  <url>https://github.com/lightcouch/LightCouch</url>
+  <licenses>
+    <license>
+      <name>Apache License, Version 2.0</name>
+      <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+    </license>
+  </licenses>
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.release>8</maven.compiler.release>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>org.apache.httpcomponents</groupId>
+      <artifactId>httpclient</artifactId>
+      <version>4.5.14</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.code.gson</groupId>
+      <artifactId>gson</artifactId>
+      <version>2.15.0</version>
+    </dependency>
+    <dependency>
+      <groupId>commons-codec</groupId>
+      <artifactId>commons-codec</artifactId>
+      <version>1.23.0</version>
+    </dependency>
+    <dependency>
+      <groupId>commons-logging</groupId>
+      <artifactId>commons-logging</artifactId>
+      <version>1.4.0</version>
+    </dependency>
+  </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.12.1</version>
+        <configuration>
+          <release>8</release>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>3.3.0</version>
+      </plugin>
+    </plugins>
+  </build>
+</project>
+""", encoding="utf-8")
+pom = Path("pom.xml").read_text(encoding="utf-8")
+poms = sorted(str(path) for path in Path(".").rglob("pom.xml"))
+if poms != ["pom.xml"]:
+    raise SystemExit("poms " + str(poms))
+for needle in (
+    "<artifactId>lightcouch</artifactId>",
+    "<artifactId>httpclient</artifactId>",
+    "<artifactId>gson</artifactId>",
+    "<artifactId>commons-codec</artifactId>",
+    "<artifactId>commons-logging</artifactId>",
+    "<version>4.5.14</version>",
+    "<version>2.15.0</version>",
+    "<version>1.23.0</version>",
+    "<version>1.4.0</version>",
+    "<version>%{version}</version>",
+    "<release>8</release>",
+    "<maven.compiler.release>8</maven.compiler.release>",
+):
+    if needle not in pom:
+        raise SystemExit("pom missing " + needle)
+for needle in ("junit", "oss-parent", "SNAPSHOT", "<source>", "<target>", "<parent>"):
+    if needle in pom:
+        raise SystemExit("pom still contains " + needle)
+PY
 
-
-
-
-%build
-
-%mvn_file : %{name}
-%mvn_build
-
-%install
-%mvn_install
+%build -a
+java --module-path target/lightcouch-%{version}.jar --describe-module lightcouch > module-describe.txt
+# A versioned jar prints "name@version ... automatic", not "name automatic".
+grep -q '^lightcouch' module-describe.txt || { cat module-describe.txt; exit 1; }
+grep -q ' automatic$' module-describe.txt || { cat module-describe.txt; exit 1; }
 
 %files -f .mfiles
 %doc LICENSE README.md
-
-%files javadoc -f .mfiles-javadoc
-%doc LICENSE
-
-%changelog
-* Sat Jun 07 2014 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 0.1.2-2
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_21_Mass_Rebuild
-
-* Fri May 09 2014 gil cattaneo <puntogil@libero.it> 0.1.2-1
-- update to 0.1.2
-
-* Mon Apr 21 2014 gil cattaneo <puntogil@libero.it> 0.0.6-1
-- initial rpm
